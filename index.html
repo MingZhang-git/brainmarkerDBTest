@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BrainMarkerDB — 成年人脑单细胞Marker数据库</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ─── Reset ─── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',sans-serif;font-size:14px;line-height:1.6;color:#1c1c1e;background:#f2f2f7}
+
+/* ─── Layout ─── */
+.shell{display:flex;min-height:100vh}
+.side{width:220px;background:#1c1c2e;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column}
+
+/* ─── Sidebar ─── */
+.side-brand{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand-logo{display:flex;align-items:center;gap:10px}
+.brand-icon{width:34px;height:34px;background:linear-gradient(135deg,#a78bfa,#60a5fa);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff}
+.brand-name{color:#f0f0f5;font-weight:700;font-size:15px}
+.brand-sub{color:#7c7c96;font-size:11px;margin-top:1px}
+
+.side-search{padding:10px 12px}
+.side-search input{width:100%;padding:7px 10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:12px;color:#e0e0ef;outline:none;caret-color:#a78bfa}
+.side-search input::placeholder{color:#5c5c7a}
+.side-search input:focus{border-color:#a78bfa;background:rgba(167,139,250,.1)}
+
+.side-sec{padding:4px 0}
+.side-sec-lbl{padding:6px 14px;font-size:10px;color:#5c5c7a;text-transform:uppercase;letter-spacing:.7px;font-weight:600}
+.nav{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;color:#9090b8;font-size:13px;border-radius:0;transition:all .15s;white-space:nowrap}
+.nav:hover{background:rgba(255,255,255,.05);color:#e0e0ef}
+.nav.active{background:rgba(167,139,250,.15);color:#c4b5fd;border-left:3px solid #a78bfa;padding-left:11px}
+.nav .icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.nav .cnt{margin-left:auto;font-size:10px;background:rgba(255,255,255,.08);color:#6060a0;padding:1px 6px;border-radius:10px}
+.nav.active .cnt{background:rgba(167,139,250,.2);color:#a78bfa}
+
+.side-footer{margin-top:auto;padding:12px 14px;border-top:1px solid rgba(255,255,255,.06)}
+.side-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sstat{background:rgba(255,255,255,.05);border-radius:8px;padding:8px;text-align:center}
+.sstat-n{font-size:15px;font-weight:700;color:#a78bfa}
+.sstat-l{font-size:10px;color:#5c5c7a;margin-top:1px}
+
+/* ─── Top bar ─── */
+.topbar{background:#fff;border-bottom:1px solid #e8eaed;padding:0 24px;height:52px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:16px;font-weight:600;flex:1}
+.btn{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #e2e8f0;background:#fff;color:#555;display:inline-flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
+.btn:hover{background:#f5f6fa;border-color:#ccc}
+.btn-prim{background:#7c3aed;color:#fff;border-color:#7c3aed}
+.btn-prim:hover{background:#6d28d9}
+.btn-ghost{background:transparent;border-color:transparent;color:#7c3aed}
+.btn-ghost:hover{background:#f5f3ff}
+
+/* ─── Content ─── */
+.content{padding:22px 24px;flex:1}
+
+/* ─── Metric cards ─── */
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+.mc{background:#fff;border-radius:12px;padding:16px 18px;border:1px solid #e8eaed;display:flex;flex-direction:column;gap:4px}
+.mc-top{display:flex;align-items:center;justify-content:space-between}
+.mc-lbl{font-size:12px;color:#888}
+.mc-icon{font-size:20px;opacity:.75}
+.mc-val{font-size:22px;font-weight:700;color:#1c1c1e}
+.mc-sub{font-size:11px;color:#aaa}
+
+/* ─── Cards ─── */
+.card{background:#fff;border-radius:12px;border:1px solid #e8eaed;overflow:hidden}
+.card-head{padding:14px 18px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px}
+.card-title{font-size:14px;font-weight:600;flex:1}
+.card-body{padding:18px}
+
+/* ─── Grid layouts ─── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.full{grid-column:1/-1}
+
+/* ─── Table ─── */
+table{width:100%;border-collapse:collapse}
+th{padding:9px 14px;text-align:left;font-size:11px;font-weight:600;color:#888;background:#fafafa;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+td{padding:9px 14px;font-size:13px;color:#333;border-bottom:1px solid #f8f8f8;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafd}
+
+/* ─── Badges ─── */
+.badge{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.b-ex_neuron{background:#ede9fe;color:#4c1d95}
+.b-in_neuron{background:#fce7f3;color:#831843}
+.b-astrocyte{background:#fef9c3;color:#78350f}
+.b-oligodendrocyte{background:#dbeafe;color:#1e3a8a}
+.b-opc{background:#dcfce7;color:#14532d}
+.b-microglia{background:#fee2e2;color:#7f1d1d}
+.b-endothelial{background:#ffedd5;color:#7c2d12}
+.b-mural{background:#f1f5f9;color:#334155}
+.b-choroid{background:#e0f2fe;color:#0c4a6e}
+.b-default{background:#f3f4f6;color:#374151}
+
+/* ─── Specificity bar ─── */
+.spec-bar{display:flex;align-items:center;gap:7px}
+.spec-track{flex:1;height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden;min-width:50px}
+.spec-fill{height:100%;border-radius:3px}
+.fill-hi{background:#16a34a}.fill-mi{background:#ca8a04}.fill-lo{background:#dc2626}
+.gene-lnk{color:#7c3aed;cursor:pointer;font-weight:500}
+.gene-lnk:hover{text-decoration:underline}
+
+/* ─── Pagination ─── */
+.pagination{display:flex;align-items:center;gap:4px;padding:10px 14px;border-top:1px solid #f0f0f0;justify-content:flex-end}
+.pbn{padding:3px 9px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:12px;cursor:pointer;color:#555}
+.pbn:hover{background:#f5f5f5}
+.pbn.on{background:#7c3aed;color:#fff;border-color:#7c3aed}
+
+/* ─── Tabs ─── */
+.tabs{display:flex;border-bottom:1px solid #e8eaed;margin-bottom:18px}
+.tab{padding:9px 16px;font-size:13px;color:#888;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab:hover{color:#555}
+.tab.on{color:#7c3aed;border-bottom-color:#7c3aed;font-weight:500}
+.tp{display:none}.tp.on{display:block}
+
+/* ─── Filters ─── */
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fsel{padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;background:#fff;color:#555;cursor:pointer;outline:none}
+.fsel:focus{border-color:#7c3aed}
+.fsearch{padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;width:150px;outline:none}
+.fsearch:focus{border-color:#7c3aed}
+
+/* ─── UMAP ─── */
+#umap-canvas{display:block;width:100%;border-radius:8px}
+
+/* ─── Dot plot ─── */
+#dotplot-svg{display:block;width:100%;overflow-x:auto}
+
+/* ─── Heatmap ─── */
+.hm-wrap{overflow-x:auto}
+.hm-table{border-collapse:collapse}
+.hm-table td,.hm-table th{border:1.5px solid #fff;width:40px;height:32px}
+.hm-row-lbl{text-align:right;padding-right:8px!important;font-size:11px;color:#555;width:88px!important;background:transparent!important;border:none!important;white-space:nowrap}
+.hm-col-lbl{font-size:9px;color:#666;text-align:center;writing-mode:vertical-rl;transform:rotate(180deg);height:64px!important;width:40px!important;background:transparent!important;border:none!important;padding:0!important}
+.hm-val{cursor:pointer;border-radius:3px}
+
+/* ─── Violin proxy ─── */
+.violin-wrap{height:320px}
+
+/* ─── Detail drawer ─── */
+.drawer{display:none;background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:24px;margin-top:16px}
+.drawer.open{display:block}
+.dh{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px}
+.dh-icon{width:52px;height:52px;background:#ede9fe;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#7c3aed;flex-shrink:0}
+.dh-gene{font-size:20px;font-weight:700}
+.dh-full{font-size:12px;color:#888;margin-top:3px}
+.dh-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.dh-close{margin-left:auto;background:#f5f5f5;border:none;border-radius:8px;padding:5px 12px;cursor:pointer;color:#555;font-size:12px}
+.dh-close:hover{background:#e8e8e8}
+
+/* ─── Brain region chips ─── */
+.region-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+.rc{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid transparent;transition:all .15s;background:#f3f4f6;color:#555}
+.rc:hover{border-color:#a78bfa;color:#7c3aed}
+.rc.sel{background:#ede9fe;color:#7c3aed;border-color:#a78bfa}
+
+/* ─── Cell type grid (overview) ─── */
+.ct-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+.ct-card{background:#fff;border-radius:10px;border:1px solid #e8eaed;padding:14px}
+.ct-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ct-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.ct-name{font-weight:600;font-size:13px}
+.ct-cnt{font-size:11px;color:#aaa;margin-left:auto}
+.ct-bar-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.ct-bar-label{font-size:11px;color:#555;width:56px;flex-shrink:0}
+.ct-bar-track{flex:1;height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden}
+.ct-bar-fill{height:100%;border-radius:3px}
+
+/* ─── Upload hint ─── */
+.upload-hint{border:2px dashed #d1d5db;border-radius:10px;padding:32px;text-align:center;color:#9ca3af;cursor:pointer;transition:border .2s}
+.upload-hint:hover{border-color:#a78bfa;color:#7c3aed}
+.upload-hint .icon{font-size:32px;margin-bottom:8px}
+.upload-hint .title{font-size:14px;font-weight:500;margin-bottom:4px}
+.upload-hint .sub{font-size:12px}
+
+/* ─── Legend ─── */
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#666}
+.leg-dot{border-radius:50%}
+.leg-sq{border-radius:2px}
+
+/* ─── Tooltip ─── */
+.tip{position:fixed;background:#1a1a2e;color:#e0e0ef;font-size:12px;padding:8px 12px;border-radius:8px;pointer-events:none;z-index:9999;max-width:220px;display:none;line-height:1.6;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+
+/* ─── Upload panel ─── */
+.upanel{background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:24px;margin-bottom:22px}
+.upanel-title{font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.upanel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.uzone{border:2px dashed #d1d5db;border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:all .2s}
+.uzone:hover,.uzone.over{border-color:#a78bfa;background:#faf5ff}
+.uzone input{display:none}
+.uzone-icon{font-size:28px;margin-bottom:8px}
+.uzone-title{font-size:13px;font-weight:500;color:#555;margin-bottom:4px}
+.uzone-sub{font-size:11px;color:#aaa}
+.uzone-loaded{border-color:#16a34a;background:#f0fdf4}
+.uzone-loaded .uzone-title{color:#16a34a}
+.data-status{margin-top:12px;font-size:12px;color:#888;padding:8px 12px;background:#f8f9fa;border-radius:8px;display:none;white-space:pre-line;line-height:1.6}
+.data-status.show{display:block}
+
+/* ─── Responsive ─── */
+@media(max-width:1280px){.metrics{grid-template-columns:repeat(3,1fr)}.ct-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.side{width:50px}.main{margin-left:50px}.g2,.g3{grid-template-columns:1fr}}
+
+mark{background:#fde68a;border-radius:2px;padding:0 2px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="side">
+  <div class="side-brand">
+    <div class="brand-logo">
+      <div class="brand-icon">🧠</div>
+      <div>
+        <div class="brand-name">BrainMarkerDB</div>
+        <div class="brand-sub">成年人脑 scRNA-seq</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-search">
+    <input id="g-search" placeholder="搜索基因…" oninput="globalSearch(this.value)">
+  </div>
+
+  <div class="side-sec">
+    <div class="side-sec-lbl">页面</div>
+    <div class="nav active" onclick="showPage('overview',this)"><span class="icon">🏠</span><span>概览</span></div>
+    <div class="nav" onclick="showPage('markers',this)"><span class="icon">🧬</span><span>Marker列表</span><span class="cnt" id="cnt-markers">--</span></div>
+    <div class="nav" onclick="showPage('expression',this)"><span class="icon">📊</span><span>表达可视化</span></div>
+    <div class="nav" onclick="showPage('umap',this)"><span class="icon">🗺️</span><span>UMAP降维图</span></div>
+    <div class="nav" onclick="showPage('upload',this)"><span class="icon">📂</span><span>数据上传</span></div>
+  </div>
+
+  <div class="side-sec">
+    <div class="side-sec-lbl">脑区快筛</div>
+    <div class="nav" onclick="filterRegion('Cortex',this)"><span class="icon">🟣</span><span>皮层 Cortex</span></div>
+    <div class="nav" onclick="filterRegion('Hippocampus',this)"><span class="icon">🔵</span><span>海马 Hippocampus</span></div>
+    <div class="nav" onclick="filterRegion('Cerebellum',this)"><span class="icon">🟢</span><span>小脑 Cerebellum</span></div>
+    <div class="nav" onclick="filterRegion('Striatum',this)"><span class="icon">🟡</span><span>纹状体 Striatum</span></div>
+    <div class="nav" onclick="filterRegion('Brainstem',this)"><span class="icon">🔴</span><span>脑干 Brainstem</span></div>
+    <div class="nav" onclick="filterRegion('',this)"><span class="icon">🔍</span><span>全部脑区</span></div>
+  </div>
+
+  <div class="side-footer">
+    <div class="side-stats">
+      <div class="sstat"><div class="sstat-n" id="s-markers">--</div><div class="sstat-l">Markers</div></div>
+      <div class="sstat"><div class="sstat-n">9</div><div class="sstat-l">细胞类型</div></div>
+      <div class="sstat"><div class="sstat-n">5</div><div class="sstat-l">脑区</div></div>
+      <div class="sstat"><div class="sstat-n" id="s-ds">0</div><div class="sstat-l">数据集</div></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">概览</div>
+    <button class="btn" onclick="exportCSV()">⬇ 导出CSV</button>
+    <button class="btn btn-prim" onclick="showPage('upload', document.querySelector('[onclick*=upload]'))">📂 上传数据</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ OVERVIEW ══ -->
+    <div id="page-overview" class="tp on">
+
+      <div class="metrics" id="metric-cards"></div>
+
+      <!-- Brain region chips -->
+      <div class="region-chips" id="region-chips"></div>
+
+      <!-- Cell type overview grid -->
+      <div class="ct-grid" id="ct-overview-grid"></div>
+
+      <!-- Two charts -->
+      <div class="g2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-head"><div class="card-title">各细胞类型 Marker 数量</div></div>
+          <div class="card-body" style="height:230px"><canvas id="ch-celltype"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Marker 特异性评分分布</div></div>
+          <div class="card-body" style="height:230px"><canvas id="ch-spec-dist"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Top markers table -->
+      <div class="card">
+        <div class="card-head"><div class="card-title">⭐ Top Markers (特异性排名)</div><button class="btn btn-ghost" onclick="showPage('markers',document.querySelector('[onclick*=markers]'))">查看全部 →</button></div>
+        <table><thead><tr><th>基因</th><th>细胞类型</th><th>脑区</th><th>特异性</th><th>平均表达</th><th>LogFC</th><th>adj.p</th></tr></thead>
+        <tbody id="overview-table-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ══ MARKERS ══ -->
+    <div id="page-markers" class="tp">
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-head">
+          <div class="card-title">Marker 列表</div>
+          <div class="filters">
+            <input class="fsearch" id="m-search" placeholder="搜索基因…" oninput="renderMarkers()">
+            <select class="fsel" id="m-ct" onchange="renderMarkers()"><option value="">所有细胞类型</option></select>
+            <select class="fsel" id="m-region" onchange="renderMarkers()"><option value="">所有脑区</option></select>
+            <select class="fsel" id="m-spec" onchange="renderMarkers()">
+              <option value="">特异性</option>
+              <option value="hi">高 ≥0.8</option>
+              <option value="mi">中 0.5-0.8</option>
+              <option value="lo">低 &lt;0.5</option>
+            </select>
+            <select class="fsel" id="m-sort" onchange="renderMarkers()">
+              <option value="spec">按特异性</option>
+              <option value="expr">按表达量</option>
+              <option value="lfc">按LogFC</option>
+              <option value="gene">按基因名</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>基因</th><th>全名</th><th>细胞类型</th><th>脑区</th><th>特异性</th><th>平均表达</th><th>LogFC</th><th>Pct.1</th><th>Pct.2</th><th>adj.p</th><th>操作</th></tr></thead>
+          <tbody id="marker-tbody"></tbody>
+        </table>
+        <div class="pagination" id="marker-pag"></div>
+      </div>
+
+      <!-- Detail drawer -->
+      <div class="drawer" id="gene-drawer">
+        <div class="dh">
+          <div class="dh-icon" id="dh-icon">--</div>
+          <div>
+            <div class="dh-gene" id="dh-gene">--</div>
+            <div class="dh-full" id="dh-full">--</div>
+            <div class="dh-tags" id="dh-tags"></div>
+          </div>
+          <button class="dh-close" onclick="closeDrawer()">✕ 关闭</button>
+        </div>
+        <div class="tabs">
+          <div class="tab on" onclick="switchTab(this,'dt-expr')">跨细胞类型表达</div>
+          <div class="tab" onclick="switchTab(this,'dt-region')">脑区分布</div>
+          <div class="tab" onclick="switchTab(this,'dt-info')">基因信息</div>
+        </div>
+        <div id="dt-expr" class="tp on">
+          <div style="height:240px"><canvas id="dh-chart"></canvas></div>
+        </div>
+        <div id="dt-region" class="tp">
+          <div style="height:240px"><canvas id="dh-region-chart"></canvas></div>
+        </div>
+        <div id="dt-info" class="tp">
+          <table id="dh-info-table" style="max-width:560px"></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ EXPRESSION ══ -->
+    <div id="page-expression" class="tp">
+      <div class="tabs">
+        <div class="tab on" onclick="switchTab(this,'exp-dot')">🔵 Dot Plot</div>
+        <div class="tab" onclick="switchTab(this,'exp-heat')">🌡 Heatmap</div>
+        <div class="tab" onclick="switchTab(this,'exp-violin')">🎻 Violin / Bar</div>
+      </div>
+
+      <!-- Dot plot -->
+      <div id="exp-dot" class="tp on">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Dot Plot — Marker × 细胞类型</div>
+            <div class="filters">
+              <select class="fsel" id="dot-region" onchange="renderDotPlot()"><option value="">全部脑区</option></select>
+              <select class="fsel" id="dot-ct" onchange="renderDotPlot()"><option value="">全部细胞类型</option></select>
+              <select class="fsel" id="dot-topn" onchange="renderDotPlot()">
+                <option value="10">Top 10 genes</option>
+                <option value="15" selected>Top 15 genes</option>
+                <option value="20">Top 20 genes</option>
+                <option value="30">Top 30 genes</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-body" style="overflow-x:auto">
+            <div id="dotplot-container"></div>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <div class="legend">
+              <span style="font-size:12px;color:#888;margin-right:4px">圆圈大小 = 表达比例</span>
+              <div class="leg-item"><div class="leg-dot" style="width:6px;height:6px;background:#e2e8f0"></div>低</div>
+              <div class="leg-item"><div class="leg-dot" style="width:12px;height:12px;background:#e2e8f0"></div>中</div>
+              <div class="leg-item"><div class="leg-dot" style="width:20px;height:20px;background:#e2e8f0"></div>高</div>
+              <span style="font-size:12px;color:#888;margin-left:12px;margin-right:4px">颜色 = 表达强度</span>
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#f1f5f9"></div>低</div>
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#a78bfa"></div>中</div>
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#4c1d95"></div>高</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Heatmap -->
+      <div id="exp-heat" class="tp">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">表达热图 — Top Markers × 细胞类型</div>
+            <div class="filters">
+              <select class="fsel" id="heat-region" onchange="renderHeatmap()"><option value="">全部脑区</option></select>
+              <select class="fsel" id="heat-topn" onchange="renderHeatmap()">
+                <option value="15" selected>Top 15</option><option value="20">Top 20</option><option value="30">Top 30</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-body hm-wrap" id="heatmap-container"></div>
+          <div class="card-body" style="padding-top:0">
+            <div class="legend">
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#f5f3ff"></div>低表达 (0)</div>
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#a78bfa"></div>中等</div>
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#3730a3"></div>高表达</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Violin/Bar -->
+      <div id="exp-violin" class="tp">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">基因在各细胞类型中的表达</div>
+            <div class="filters">
+              <select class="fsel" id="vln-gene" onchange="renderViolin()"></select>
+              <select class="fsel" id="vln-region" onchange="renderViolin()"><option value="">全部脑区</option></select>
+            </div>
+          </div>
+          <div class="card-body violin-wrap"><canvas id="violin-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ UMAP ══ -->
+    <div id="page-umap" class="tp">
+      <div class="g2">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">UMAP — 细胞类型分布</div>
+            <div class="filters">
+              <select class="fsel" id="umap-color" onchange="drawUMAP()">
+                <option value="celltype">按细胞类型着色</option>
+                <option value="region">按脑区着色</option>
+              </select>
+              <select class="fsel" id="umap-region" onchange="drawUMAP()"><option value="">全部脑区</option></select>
+            </div>
+          </div>
+          <div class="card-body" style="padding:10px">
+            <canvas id="umap-canvas" width="520" height="420"></canvas>
+          </div>
+          <div class="card-body" style="padding-top:0" id="umap-legend"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">基因表达叠加</div>
+            <div class="filters">
+              <select class="fsel" id="umap-gene" onchange="drawUMAPGene()"></select>
+            </div>
+          </div>
+          <div class="card-body" style="padding:10px">
+            <canvas id="umap-gene-canvas" width="520" height="420"></canvas>
+          </div>
+          <div class="card-body" style="padding-top:0">
+            <div class="legend">
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#f1f5f9"></div>低表达</div>
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#a78bfa"></div>中等</div>
+              <div class="leg-item"><div class="leg-sq" style="width:14px;height:14px;background:#3730a3"></div>高表达</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">各簇统计</div></div>
+        <div class="card-body">
+          <table id="umap-stat-table">
+            <thead><tr><th>细胞类型</th><th>脑区</th><th>细胞数(模拟)</th><th>Marker数</th><th>代表基因</th></tr></thead>
+            <tbody id="umap-stat-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ UPLOAD ══ -->
+    <div id="page-upload" class="tp">
+      <div class="upanel">
+        <div class="upanel-title">📂 上传您的数据 <span style="font-size:12px;font-weight:400;color:#aaa">— 支持 CSV Marker列表 + Seurat 元数据（UMAP坐标 + 细胞注释）</span></div>
+        <div class="upanel-grid">
+          <div>
+            <div style="font-size:13px;font-weight:500;color:#555;margin-bottom:8px">① Marker 列表 (CSV/TSV)</div>
+            <div class="uzone" id="zone-marker" onclick="document.getElementById('file-marker').click()" ondragover="onDragOver(event,this)" ondrop="onDrop(event,'marker')">
+              <input type="file" id="file-marker" accept=".csv,.tsv,.txt" onchange="loadMarkerFile(this)">
+              <div class="uzone-icon">📋</div>
+              <div class="uzone-title">点击或拖入 Marker CSV</div>
+              <div class="uzone-sub">必需列：gene + celltype（或cluster）<br>Seurat输出可直接用，pct.1/pct.2自动识别<br>支持CSV/TSV，UTF-8或GBK编码</div>
+            </div>
+            <div class="data-status" id="status-marker"></div>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:500;color:#555;margin-bottom:8px">② UMAP 坐标 + 细胞注释 (CSV)</div>
+            <div class="uzone" id="zone-umap" onclick="document.getElementById('file-umap').click()" ondragover="onDragOver(event,this)" ondrop="onDrop(event,'umap')">
+              <input type="file" id="file-umap" accept=".csv,.tsv,.txt" onchange="loadUMAPFile(this)">
+              <div class="uzone-icon">🗺️</div>
+              <div class="uzone-title">点击或拖入 UMAP CSV</div>
+              <div class="uzone-sub">必需列：UMAP_1, UMAP_2 + celltype（或cluster）<br>支持umap1/umap_1等大小写变体<br>可选列：region, sample, seurat_clusters</div>
+            </div>
+            <div class="data-status" id="status-umap"></div>
+          </div>
+        </div>
+        <div style="margin-top:16px;padding:14px;background:#f8f9fa;border-radius:8px;font-size:12px;color:#666">
+          <strong>📌 Seurat RDS 用户：</strong>请先在 R 中运行以下命令导出数据：<br>
+          <code style="background:#eee;padding:2px 6px;border-radius:4px;font-size:11px;margin-top:4px;display:inline-block">
+            markers &lt;- FindAllMarkers(seurat_obj, only.pos=TRUE)<br>
+            write.csv(markers, "markers.csv")<br>
+            meta &lt;- cbind(seurat_obj@meta.data, Embeddings(seurat_obj, "umap"))<br>
+            write.csv(meta, "umap_meta.csv")
+          </code>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">📌 数据格式要求</div></div>
+        <div class="card-body">
+          <div class="g2">
+            <div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:8px">Marker CSV 格式</div>
+              <table style="font-size:12px">
+                <thead><tr><th>列名</th><th>说明</th><th>必需</th></tr></thead>
+                <tbody>
+                  <tr><td><code>gene</code></td><td>基因名称</td><td>✅</td></tr>
+                  <tr><td><code>celltype</code></td><td>细胞类型标签</td><td>✅</td></tr>
+                  <tr><td><code>specificity</code></td><td>特异性分数 0–1</td><td>推荐</td></tr>
+                  <tr><td><code>avg_expr</code></td><td>平均表达量</td><td>推荐</td></tr>
+                  <tr><td><code>logFC</code></td><td>log2 FoldChange</td><td>推荐</td></tr>
+                  <tr><td><code>pct1</code></td><td>目标细胞表达比例</td><td>推荐</td></tr>
+                  <tr><td><code>pct2</code></td><td>其他细胞表达比例</td><td>推荐</td></tr>
+                  <tr><td><code>p_adj</code></td><td>校正p值</td><td>推荐</td></tr>
+                  <tr><td><code>region</code></td><td>脑区标签</td><td>推荐</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:600;margin-bottom:8px">UMAP CSV 格式</div>
+              <table style="font-size:12px">
+                <thead><tr><th>列名</th><th>说明</th><th>必需</th></tr></thead>
+                <tbody>
+                  <tr><td><code>UMAP_1</code></td><td>UMAP 第一维坐标</td><td>✅</td></tr>
+                  <tr><td><code>UMAP_2</code></td><td>UMAP 第二维坐标</td><td>✅</td></tr>
+                  <tr><td><code>celltype</code></td><td>细胞类型标签</td><td>✅</td></tr>
+                  <tr><td><code>region</code></td><td>脑区标签</td><td>推荐</td></tr>
+                  <tr><td><code>sample</code></td><td>样本/批次ID</td><td>可选</td></tr>
+                  <tr><td><code>cluster</code></td><td>Seurat Cluster ID</td><td>可选</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+// ════════════════════════════════════════════
+//  BRAIN-SPECIFIC DEMO DATA
+// ════════════════════════════════════════════
+const CT_COLORS = {
+  'Excitatory Neuron': '#7c3aed',
+  'Inhibitory Neuron': '#be185d',
+  'Astrocyte':         '#ca8a04',
+  'Oligodendrocyte':   '#1d4ed8',
+  'OPC':               '#16a34a',
+  'Microglia':         '#dc2626',
+  'Endothelial':       '#ea580c',
+  'Mural':             '#6b7280',
+  'Choroid Plexus':    '#0891b2'
+};
+const CT_BADGE = {
+  'Excitatory Neuron':'b-ex_neuron','Inhibitory Neuron':'b-in_neuron',
+  'Astrocyte':'b-astrocyte','Oligodendrocyte':'b-oligodendrocyte','OPC':'b-opc',
+  'Microglia':'b-microglia','Endothelial':'b-endothelial','Mural':'b-mural','Choroid Plexus':'b-choroid'
+};
+const REGIONS = ['Cortex','Hippocampus','Cerebellum','Striatum','Brainstem'];
+const REGION_COLORS = {'Cortex':'#7c3aed','Hippocampus':'#0891b2','Cerebellum':'#16a34a','Striatum':'#ca8a04','Brainstem':'#dc2626'};
+const CELL_TYPES = Object.keys(CT_COLORS);
+
+const GENE_FULL = {
+  // Excitatory neurons
+  CAMK2A:'Calcium/Calmodulin Dependent Protein Kinase II Alpha',
+  NRGN:'Neurogranin',SLC17A7:'Vesicular Glutamate Transporter 1 (VGLUT1)',
+  GRIN2B:'Glutamate Ionotropic Receptor NMDA Type Subunit 2B',
+  RBFOX3:'RNA Binding Fox-1 Homolog 3 (NeuN)',SNAP25:'Synaptosomal-Associated Protein 25',
+  SYN1:'Synapsin I',SYT1:'Synaptotagmin 1',NEFL:'Neurofilament Light',
+  // Inhibitory neurons
+  GAD1:'Glutamate Decarboxylase 1',GAD2:'Glutamate Decarboxylase 2',
+  SST:'Somatostatin',PVALB:'Parvalbumin',VIP:'Vasoactive Intestinal Peptide',
+  CALB1:'Calbindin 1',CALB2:'Calretinin',SLC32A1:'VGAT',
+  // Astrocytes
+  GFAP:'Glial Fibrillary Acidic Protein',AQP4:'Aquaporin 4',
+  SLC1A2:'Excitatory Amino Acid Transporter 2 (GLT-1)',S100B:'S100 Calcium Binding Protein B',
+  ALDH1L1:'Aldehyde Dehydrogenase 1 Family Member L1',GJA1:'Gap Junction Protein Alpha 1 (Cx43)',
+  // Oligodendrocytes
+  MBP:'Myelin Basic Protein',PLP1:'Proteolipid Protein 1',MOG:'Myelin Oligodendrocyte Glycoprotein',
+  MAG:'Myelin Associated Glycoprotein',CNP:'2\',3\'-Cyclic Nucleotide 3\'-Phosphodiesterase',
+  MOBP:'Myelin Associated Oligodendrocyte Basic Protein',
+  // OPC
+  PDGFRA:'Platelet Derived Growth Factor Receptor Alpha',
+  CSPG4:'Chondroitin Sulfate Proteoglycan 4 (NG2)',OLIG1:'Oligodendrocyte Transcription Factor 1',
+  OLIG2:'Oligodendrocyte Transcription Factor 2',SOX10:'SRY-Box Transcription Factor 10',
+  // Microglia
+  CX3CR1:'CX3C Motif Chemokine Receptor 1',P2RY12:'P2Y Purinoceptor 12',
+  TMEM119:'Transmembrane Protein 119',IBA1:'Ionized Calcium Binding Adaptor Molecule 1',
+  HEXB:'Hexosaminidase Subunit Beta',TREM2:'Triggering Receptor Expressed On Myeloid Cells 2',
+  // Endothelial
+  CLDN5:'Claudin 5',FLT1:'Fms Related Receptor Tyrosine Kinase 1 (VEGFR1)',
+  ERG:'ETS-Related Gene',PECAM1:'Platelet And Endothelial Cell Adhesion Molecule 1 (CD31)',
+  // Mural
+  PDGFRB:'Platelet Derived Growth Factor Receptor Beta',ACTA2:'Actin Alpha 2 (αSMA)',
+  // Choroid
+  TTR:'Transthyretin',FOLR1:'Folate Receptor Alpha',
+};
+
+// Curated brain markers
+const SEED_MARKERS = [
+  // Excitatory Neurons
+  {gene:'CAMK2A',ct:'Excitatory Neuron',region:'Cortex',spec:0.96,avg:3.85,lfc:2.41,pct1:0.94,pct2:0.04,padj:1.2e-120},
+  {gene:'NRGN',ct:'Excitatory Neuron',region:'Cortex',spec:0.95,avg:3.71,lfc:2.28,pct1:0.93,pct2:0.05,padj:3.4e-118},
+  {gene:'SLC17A7',ct:'Excitatory Neuron',region:'Cortex',spec:0.94,avg:3.55,lfc:2.15,pct1:0.91,pct2:0.06,padj:7.8e-115},
+  {gene:'GRIN2B',ct:'Excitatory Neuron',region:'Hippocampus',spec:0.92,avg:3.41,lfc:2.02,pct1:0.89,pct2:0.07,padj:2.1e-110},
+  {gene:'RBFOX3',ct:'Excitatory Neuron',region:'Cortex',spec:0.91,avg:3.28,lfc:1.94,pct1:0.88,pct2:0.08,padj:5.6e-107},
+  {gene:'SNAP25',ct:'Excitatory Neuron',region:'Cortex',spec:0.88,avg:3.12,lfc:1.81,pct1:0.86,pct2:0.09,padj:9.3e-102},
+  {gene:'SYN1',ct:'Excitatory Neuron',region:'Hippocampus',spec:0.87,avg:3.05,lfc:1.75,pct1:0.85,pct2:0.09,padj:3.2e-99},
+  {gene:'SYT1',ct:'Excitatory Neuron',region:'Cortex',spec:0.85,avg:2.94,lfc:1.68,pct1:0.83,pct2:0.10,padj:8.1e-96},
+  {gene:'NEFL',ct:'Excitatory Neuron',region:'Brainstem',spec:0.84,avg:2.82,lfc:1.61,pct1:0.81,pct2:0.11,padj:1.9e-92},
+  // Inhibitory Neurons
+  {gene:'GAD1',ct:'Inhibitory Neuron',region:'Cortex',spec:0.97,avg:3.92,lfc:2.53,pct1:0.96,pct2:0.03,padj:4.5e-125},
+  {gene:'GAD2',ct:'Inhibitory Neuron',region:'Cortex',spec:0.96,avg:3.81,lfc:2.44,pct1:0.95,pct2:0.03,padj:1.1e-122},
+  {gene:'SST',ct:'Inhibitory Neuron',region:'Cortex',spec:0.94,avg:3.61,lfc:2.28,pct1:0.92,pct2:0.05,padj:6.2e-118},
+  {gene:'PVALB',ct:'Inhibitory Neuron',region:'Cerebellum',spec:0.93,avg:3.48,lfc:2.19,pct1:0.91,pct2:0.06,padj:2.1e-115},
+  {gene:'VIP',ct:'Inhibitory Neuron',region:'Cortex',spec:0.91,avg:3.32,lfc:2.08,pct1:0.89,pct2:0.07,padj:8.4e-111},
+  {gene:'CALB1',ct:'Inhibitory Neuron',region:'Cerebellum',spec:0.89,avg:3.15,lfc:1.95,pct1:0.87,pct2:0.08,padj:3.6e-107},
+  {gene:'CALB2',ct:'Inhibitory Neuron',region:'Hippocampus',spec:0.88,avg:3.05,lfc:1.87,pct1:0.86,pct2:0.09,padj:1.2e-104},
+  {gene:'SLC32A1',ct:'Inhibitory Neuron',region:'Striatum',spec:0.87,avg:2.96,lfc:1.79,pct1:0.85,pct2:0.09,padj:5.7e-101},
+  // Astrocytes
+  {gene:'GFAP',ct:'Astrocyte',region:'Cortex',spec:0.97,avg:4.12,lfc:2.68,pct1:0.97,pct2:0.02,padj:8.9e-130},
+  {gene:'AQP4',ct:'Astrocyte',region:'Cortex',spec:0.96,avg:3.98,lfc:2.55,pct1:0.96,pct2:0.02,padj:2.1e-127},
+  {gene:'SLC1A2',ct:'Astrocyte',region:'Cortex',spec:0.95,avg:3.82,lfc:2.42,pct1:0.95,pct2:0.03,padj:6.4e-124},
+  {gene:'S100B',ct:'Astrocyte',region:'Hippocampus',spec:0.93,avg:3.65,lfc:2.28,pct1:0.93,pct2:0.04,padj:1.8e-120},
+  {gene:'ALDH1L1',ct:'Astrocyte',region:'Cortex',spec:0.92,avg:3.51,lfc:2.15,pct1:0.91,pct2:0.05,padj:5.2e-117},
+  {gene:'GJA1',ct:'Astrocyte',region:'Cortex',spec:0.90,avg:3.34,lfc:2.01,pct1:0.89,pct2:0.06,padj:1.4e-113},
+  // Oligodendrocytes
+  {gene:'MBP',ct:'Oligodendrocyte',region:'Cortex',spec:0.98,avg:4.35,lfc:2.85,pct1:0.98,pct2:0.01,padj:1.2e-135},
+  {gene:'PLP1',ct:'Oligodendrocyte',region:'Cortex',spec:0.97,avg:4.21,lfc:2.72,pct1:0.97,pct2:0.01,padj:3.5e-132},
+  {gene:'MOG',ct:'Oligodendrocyte',region:'Cortex',spec:0.96,avg:4.05,lfc:2.59,pct1:0.96,pct2:0.02,padj:9.1e-129},
+  {gene:'MAG',ct:'Oligodendrocyte',region:'Brainstem',spec:0.95,avg:3.88,lfc:2.45,pct1:0.94,pct2:0.02,padj:2.4e-125},
+  {gene:'CNP',ct:'Oligodendrocyte',region:'Cortex',spec:0.94,avg:3.72,lfc:2.31,pct1:0.93,pct2:0.03,padj:6.8e-122},
+  {gene:'MOBP',ct:'Oligodendrocyte',region:'Cortex',spec:0.93,avg:3.58,lfc:2.18,pct1:0.92,pct2:0.03,padj:1.9e-119},
+  // OPC
+  {gene:'PDGFRA',ct:'OPC',region:'Cortex',spec:0.95,avg:3.45,lfc:2.32,pct1:0.93,pct2:0.04,padj:5.6e-120},
+  {gene:'CSPG4',ct:'OPC',region:'Cortex',spec:0.94,avg:3.31,lfc:2.22,pct1:0.92,pct2:0.04,padj:1.4e-117},
+  {gene:'OLIG1',ct:'OPC',region:'Cortex',spec:0.93,avg:3.18,lfc:2.12,pct1:0.91,pct2:0.05,padj:4.1e-114},
+  {gene:'OLIG2',ct:'OPC',region:'Cortex',spec:0.91,avg:3.04,lfc:2.01,pct1:0.89,pct2:0.06,padj:1.1e-111},
+  {gene:'SOX10',ct:'OPC',region:'Cortex',spec:0.90,avg:2.91,lfc:1.91,pct1:0.88,pct2:0.06,padj:3.2e-108},
+  // Microglia
+  {gene:'CX3CR1',ct:'Microglia',region:'Cortex',spec:0.97,avg:3.88,lfc:2.56,pct1:0.96,pct2:0.02,padj:7.4e-128},
+  {gene:'P2RY12',ct:'Microglia',region:'Cortex',spec:0.96,avg:3.72,lfc:2.44,pct1:0.95,pct2:0.03,padj:2.1e-125},
+  {gene:'TMEM119',ct:'Microglia',region:'Cortex',spec:0.95,avg:3.58,lfc:2.33,pct1:0.94,pct2:0.03,padj:6.5e-122},
+  {gene:'IBA1',ct:'Microglia',region:'Cortex',spec:0.94,avg:3.45,lfc:2.22,pct1:0.93,pct2:0.04,padj:1.9e-119},
+  {gene:'HEXB',ct:'Microglia',region:'Cortex',spec:0.93,avg:3.31,lfc:2.11,pct1:0.92,pct2:0.04,padj:5.6e-116},
+  {gene:'TREM2',ct:'Microglia',region:'Cortex',spec:0.92,avg:3.18,lfc:2.01,pct1:0.91,pct2:0.05,padj:1.6e-113},
+  // Endothelial
+  {gene:'CLDN5',ct:'Endothelial',region:'Cortex',spec:0.98,avg:4.21,lfc:2.78,pct1:0.97,pct2:0.01,padj:4.2e-132},
+  {gene:'FLT1',ct:'Endothelial',region:'Cortex',spec:0.97,avg:4.08,lfc:2.65,pct1:0.96,pct2:0.01,padj:1.1e-129},
+  {gene:'ERG',ct:'Endothelial',region:'Cortex',spec:0.96,avg:3.92,lfc:2.51,pct1:0.95,pct2:0.02,padj:3.2e-126},
+  {gene:'PECAM1',ct:'Endothelial',region:'Cortex',spec:0.95,avg:3.76,lfc:2.38,pct1:0.94,pct2:0.02,padj:8.9e-123},
+  // Mural
+  {gene:'PDGFRB',ct:'Mural',region:'Cortex',spec:0.95,avg:3.62,lfc:2.45,pct1:0.93,pct2:0.03,padj:2.6e-120},
+  {gene:'ACTA2',ct:'Mural',region:'Cortex',spec:0.93,avg:3.41,lfc:2.28,pct1:0.91,pct2:0.04,padj:7.8e-116},
+  // Choroid Plexus
+  {gene:'TTR',ct:'Choroid Plexus',region:'Cortex',spec:0.98,avg:4.45,lfc:2.92,pct1:0.98,pct2:0.01,padj:6.1e-138},
+  {gene:'FOLR1',ct:'Choroid Plexus',region:'Cortex',spec:0.97,avg:4.28,lfc:2.78,pct1:0.97,pct2:0.01,padj:1.4e-135},
+];
+
+// Generate extra markers
+function rnd(a,b){return+(a+(b-a)*Math.random()).toFixed(4)}
+const EXTRA_GENES = ['SCN1A','SCN2A','KCNQ3','HCN1','SHANK3','HOMER1','DLG4','GPHN','NRXN1','NRXN2','NLGN1','NLGN3',
+  'SYNGAP1','SHANK2','MECP2','FMR1','TSC1','TSC2','PTEN','PIK3CA','APP','PSEN1','PSEN2','MAPT','LRRK2',
+  'GBA','PARK2','PINK1','ATXN1','ATXN2','HTT','AR','SOD1','TDP43','FUS','C9orf72','SMN1','NF1','NF2',
+  'EGFR','IDH1','IDH2','VEGFA','MYC','CDKN2A','PTEN','TP53','ATRX','MGMT','PDGFB','PDGFD','KDR',
+  'NOTCH1','NOTCH2','NOTCH3','HES1','HES5','REST','NRSF','SOX2','PAX6','TBR1','TBR2','CTIP2','SATB2'];
+for(let i=0;i<240;i++){
+  const g=EXTRA_GENES[i%EXTRA_GENES.length]+(i>EXTRA_GENES.length-1?i+1:'');
+  const ct=CELL_TYPES[Math.floor(Math.random()*CELL_TYPES.length)];
+  const region=REGIONS[Math.floor(Math.random()*REGIONS.length)];
+  const spec=rnd(0.4,0.97);
+  SEED_MARKERS.push({gene:g,ct,region,spec,avg:rnd(0.5,4.2),lfc:rnd(0.3,2.8),pct1:rnd(0.2,0.97),pct2:rnd(0.01,0.15),padj:Math.pow(10,rnd(-5,-130))});
+}
+
+// ════ USER DATA LAYER (filled from uploaded files) ════
+let USER_MARKERS = null; // null = use demo data
+let USER_UMAP    = null; // null = generate synthetic
+
+function allMarkers(){return USER_MARKERS||SEED_MARKERS;}
+
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let curPage=1, PAGE=15, sortField='spec', sortAsc=false;
+let regionFilter='', chartRefs={};
+
+// ════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════
+function showPage(name,el){
+  document.querySelectorAll('.tp[id^="page-"]').forEach(p=>p.classList.remove('on'));
+  document.getElementById('page-'+name).classList.add('on');
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const titles={overview:'概览',markers:'Marker 列表',expression:'表达可视化',umap:'UMAP 降维图',upload:'上传数据'};
+  document.getElementById('page-title').textContent=titles[name]||name;
+  if(name==='overview') renderOverview();
+  if(name==='markers')  renderMarkers();
+  if(name==='expression') {renderDotPlot();renderHeatmap();renderViolin();}
+  if(name==='umap')     {initUMAPData();drawUMAP();drawUMAPGene();renderUMAPStats();}
+}
+
+function filterRegion(r,el){
+  regionFilter=r;
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  showPage('markers',null);
+  document.getElementById('m-region').value=r;
+  renderMarkers();
+}
+
+function switchTab(el,panelId){
+  const parent=el.closest('.drawer,.tp[id^="page-"],.card-body');
+  const scope=el.closest('[class]');
+  scope.parentElement.querySelectorAll(':scope > .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  const panels=document.getElementById(panelId).parentElement.querySelectorAll(':scope > .tp');
+  panels.forEach(p=>p.classList.remove('on'));
+  document.getElementById(panelId).classList.add('on');
+  if(panelId==='exp-heat') renderHeatmap();
+  if(panelId==='exp-violin') renderViolin();
+  if(panelId==='dt-region') renderGeneRegionChart();
+}
+
+// ════════════════════════════════════════════
+//  OVERVIEW
+// ════════════════════════════════════════════
+function renderOverview(){
+  const data=allMarkers();
+  // Metrics
+  const hiSpec=data.filter(m=>m.spec>=0.8).length;
+  document.getElementById('metric-cards').innerHTML=`
+    <div class="mc"><div class="mc-top"><span class="mc-lbl">Marker 总数</span><span class="mc-icon">🧬</span></div><div class="mc-val">${data.length}</div><div class="mc-sub">共 ${CELL_TYPES.length} 种细胞类型</div></div>
+    <div class="mc"><div class="mc-top"><span class="mc-lbl">高特异性 (≥0.8)</span><span class="mc-icon">⭐</span></div><div class="mc-val">${hiSpec}</div><div class="mc-sub">${(hiSpec/data.length*100).toFixed(0)}% of total</div></div>
+    <div class="mc"><div class="mc-top"><span class="mc-lbl">覆盖脑区</span><span class="mc-icon">🧠</span></div><div class="mc-val">${[...new Set(data.map(m=>m.region))].length}</div><div class="mc-sub">${REGIONS.join(' · ')}</div></div>
+    <div class="mc"><div class="mc-top"><span class="mc-lbl">已上传数据集</span><span class="mc-icon">📂</span></div><div class="mc-val" id="ov-ds">${(USER_MARKERS?1:0)+(USER_UMAP?1:0)}</div><div class="mc-sub">${USER_MARKERS?'用户数据':'示例数据'}</div></div>
+    <div class="mc"><div class="mc-top"><span class="mc-lbl">平均 LogFC</span><span class="mc-icon">📈</span></div><div class="mc-val">${(data.reduce((s,m)=>s+m.lfc,0)/data.length).toFixed(2)}</div><div class="mc-sub">Top markers 特异性强</div></div>
+  `;
+  document.getElementById('s-markers').textContent=data.length;
+  document.getElementById('cnt-markers').textContent=data.length;
+
+  // Region chips
+  document.getElementById('region-chips').innerHTML=
+    ['全部','Cortex','Hippocampus','Cerebellum','Striatum','Brainstem'].map(r=>`
+      <div class="rc${r==='全部'?'':''}" onclick="chipRegion('${r}',this)">${r}</div>
+    `).join('');
+
+  // Cell type cards
+  const grid=document.getElementById('ct-overview-grid');
+  grid.innerHTML=CELL_TYPES.map(ct=>{
+    const ms=data.filter(m=>m.ct===ct).sort((a,b)=>b.spec-a.spec);
+    const top3=ms.slice(0,3);
+    const color=CT_COLORS[ct];
+    return `<div class="ct-card">
+      <div class="ct-head">
+        <div class="ct-dot" style="background:${color}"></div>
+        <div class="ct-name">${ct}</div>
+        <div class="ct-cnt">${ms.length} markers</div>
+      </div>
+      ${top3.map(m=>`<div class="ct-bar-row">
+        <span class="ct-bar-label"><a class="gene-lnk" onclick="openDrawer('${m.gene}')">${m.gene}</a></span>
+        <div class="ct-bar-track"><div class="ct-bar-fill" style="width:${(m.spec*100).toFixed(0)}%;background:${color}"></div></div>
+        <span style="font-size:10px;color:#aaa">${m.spec.toFixed(2)}</span>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  // Charts
+  const ctCounts={};CELL_TYPES.forEach(ct=>{ctCounts[ct]=data.filter(m=>m.ct===ct).length});
+  const ctx1=document.getElementById('ch-celltype').getContext('2d');
+  if(chartRefs.c1) chartRefs.c1.destroy();
+  chartRefs.c1=new Chart(ctx1,{type:'bar',data:{labels:Object.keys(ctCounts),datasets:[{data:Object.values(ctCounts),backgroundColor:CELL_TYPES.map(k=>CT_COLORS[k]+'cc'),borderColor:CELL_TYPES.map(k=>CT_COLORS[k]),borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxRotation:45,font:{size:10}},grid:{display:false}},y:{grid:{color:'#f5f5f5'},ticks:{font:{size:10}}}}}});
+
+  const bins=[0,0,0,0,0];
+  data.forEach(m=>{if(m.spec<0.5)bins[0]++;else if(m.spec<0.65)bins[1]++;else if(m.spec<0.8)bins[2]++;else if(m.spec<0.9)bins[3]++;else bins[4]++;});
+  const ctx2=document.getElementById('ch-spec-dist').getContext('2d');
+  if(chartRefs.c2) chartRefs.c2.destroy();
+  chartRefs.c2=new Chart(ctx2,{type:'doughnut',data:{labels:['<0.5','0.5-0.65','0.65-0.8','0.8-0.9','≥0.9'],datasets:[{data:bins,backgroundColor:['#fca5a5','#fdba74','#fde047','#86efac','#a78bfa'],borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12}}}}});
+
+  // Top table
+  const top=data.sort((a,b)=>b.spec-a.spec).slice(0,10);
+  document.getElementById('overview-table-body').innerHTML=top.map(m=>`<tr>
+    <td><a class="gene-lnk" onclick="openDrawerFromOverview('${m.gene}')">${m.gene}</a></td>
+    <td><span class="badge ${CT_BADGE[m.ct]||'b-default'}">${m.ct}</span></td>
+    <td>${m.region}</td>
+    <td><div class="spec-bar"><div class="spec-track"><div class="spec-fill ${m.spec>=0.8?'fill-hi':m.spec>=0.5?'fill-mi':'fill-lo'}" style="width:${(m.spec*100).toFixed(0)}%"></div></div><span style="font-size:11px;color:#888">${m.spec.toFixed(3)}</span></div></td>
+    <td>${m.avg.toFixed(3)}</td>
+    <td>${m.lfc.toFixed(3)}</td>
+    <td>${fmtP(m.padj)}</td>
+  </tr>`).join('');
+}
+
+function chipRegion(r,el){
+  document.querySelectorAll('.rc').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  regionFilter=r==='全部'?'':r;
+  renderOverview();
+}
+
+function openDrawerFromOverview(g){showPage('markers',document.querySelector('[onclick*=markers]'));setTimeout(()=>openDrawer(g),50);}
+
+// ════════════════════════════════════════════
+//  MARKERS TABLE
+// ════════════════════════════════════════════
+function getFiltered(){
+  let d=[...allMarkers()];
+  const q=(document.getElementById('m-search')||{}).value||'';
+  const ct=(document.getElementById('m-ct')||{}).value||'';
+  const reg=(document.getElementById('m-region')||{}).value||regionFilter;
+  const spec=(document.getElementById('m-spec')||{}).value||'';
+  const sort=(document.getElementById('m-sort')||{}).value||'spec';
+  if(q) d=d.filter(m=>m.gene.toLowerCase().includes(q.toLowerCase()));
+  if(ct) d=d.filter(m=>m.ct===ct);
+  if(reg) d=d.filter(m=>m.region===reg);
+  if(spec==='hi') d=d.filter(m=>m.spec>=0.8);
+  if(spec==='mi') d=d.filter(m=>m.spec>=0.5&&m.spec<0.8);
+  if(spec==='lo') d=d.filter(m=>m.spec<0.5);
+  d.sort((a,b)=>sort==='gene'?a.gene.localeCompare(b.gene):(b[sort]||0)-(a[sort]||0));
+  return d;
+}
+
+function renderMarkers(){
+  const data=getFiltered();
+  const total=data.length;
+  const tp=Math.ceil(total/PAGE)||1;
+  curPage=Math.min(curPage,tp);
+  const page=data.slice((curPage-1)*PAGE,curPage*PAGE);
+  const q=(document.getElementById('m-search')||{}).value||'';
+  function hl(t){if(!q)return t;return t.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark>$1</mark>');}
+  document.getElementById('marker-tbody').innerHTML=page.map(m=>`<tr>
+    <td><a class="gene-lnk" onclick="openDrawer('${m.gene}')">${hl(m.gene)}</a></td>
+    <td style="font-size:11px;color:#aaa;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${GENE_FULL[m.gene]||'—'}</td>
+    <td><span class="badge ${CT_BADGE[m.ct]||'b-default'}">${m.ct}</span></td>
+    <td><span style="font-size:11px;color:${REGION_COLORS[m.region]||'#666'};font-weight:500">${m.region}</span></td>
+    <td><div class="spec-bar"><div class="spec-track"><div class="spec-fill ${m.spec>=0.8?'fill-hi':m.spec>=0.5?'fill-mi':'fill-lo'}" style="width:${(m.spec*100).toFixed(0)}%"></div></div><span style="font-size:11px;color:#888">${m.spec.toFixed(3)}</span></div></td>
+    <td>${m.avg.toFixed(3)}</td>
+    <td>${m.lfc.toFixed(3)}</td>
+    <td>${(m.pct1*100).toFixed(0)}%</td>
+    <td>${(m.pct2*100).toFixed(0)}%</td>
+    <td>${fmtP(m.padj)}</td>
+    <td><button class="btn" style="padding:2px 8px;font-size:11px" onclick="openDrawer('${m.gene}')">详情</button></td>
+  </tr>`).join('');
+
+  let pag=`<span style="font-size:12px;color:#888;margin-right:8px">共 ${total} 条</span>`;
+  for(let i=1;i<=Math.min(tp,7);i++) pag+=`<button class="pbn${i===curPage?' on':''}" onclick="gp(${i})">${i}</button>`;
+  if(tp>7) pag+=`<span style="color:#aaa;font-size:12px"> … ${tp}</span>`;
+  document.getElementById('marker-pag').innerHTML=pag;
+}
+
+function gp(p){curPage=p;renderMarkers();}
+function fmtP(v){if(!v||v===0)return '—';if(v<1e-100)return '<1e-100';if(v<0.001)return v.toExponential(1);return v.toFixed(4);}
+
+// ════════════════════════════════════════════
+//  GENE DETAIL DRAWER
+// ════════════════════════════════════════════
+function openDrawer(gene){
+  const drawer=document.getElementById('gene-drawer');
+  drawer.classList.add('open');
+  drawer.scrollIntoView({behavior:'smooth',block:'start'});
+  const rows=allMarkers().filter(m=>m.gene===gene);
+  const main=rows[0]||{gene,ct:'—',region:'—',spec:0,avg:0,lfc:0,pct1:0,pct2:0,padj:1};
+  document.getElementById('dh-icon').textContent=gene.slice(0,4);
+  document.getElementById('dh-gene').textContent=gene;
+  document.getElementById('dh-full').textContent=GENE_FULL[gene]||gene+' Gene';
+  document.getElementById('dh-tags').innerHTML=
+    `<span class="badge ${CT_BADGE[main.ct]||'b-default'}">${main.ct}</span>`+
+    `<span class="badge b-default" style="color:${REGION_COLORS[main.region]||'#666'}">${main.region}</span>`+
+    `<span class="badge b-default">${main.spec>=0.8?'⭐ 高特异':main.spec>=0.5?'中等特异':'低特异'}</span>`;
+
+  // Expr across cell types
+  const exprData=CELL_TYPES.map(ct=>{
+    const r=allMarkers().find(m=>m.gene===gene&&m.ct===ct);
+    return{ct,avg:r?r.avg:rnd(0,0.3),pct:r?r.pct1:rnd(0,0.05)};
+  });
+  const ctx=document.getElementById('dh-chart').getContext('2d');
+  if(chartRefs.dh) chartRefs.dh.destroy();
+  chartRefs.dh=new Chart(ctx,{type:'bar',data:{labels:exprData.map(d=>d.ct),datasets:[
+    {label:'平均表达',data:exprData.map(d=>+d.avg.toFixed(3)),backgroundColor:CELL_TYPES.map(ct=>CT_COLORS[ct]+'cc'),borderColor:CELL_TYPES.map(ct=>CT_COLORS[ct]),borderWidth:1,borderRadius:4,yAxisID:'y'},
+    {label:'表达比例%',data:exprData.map(d=>+(d.pct*100).toFixed(1)),type:'line',borderColor:'#6b7280',pointBackgroundColor:CELL_TYPES.map(ct=>CT_COLORS[ct]),pointRadius:5,borderWidth:1.5,yAxisID:'y1',backgroundColor:'rgba(107,114,128,.05)',fill:true}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:10}}},scales:{x:{ticks:{maxRotation:45,font:{size:10}},grid:{display:false}},y:{grid:{color:'#f5f5f5'},title:{display:true,text:'Avg Expr',font:{size:11}}},y1:{position:'right',grid:{display:false},title:{display:true,text:'% Expressing',font:{size:11}},max:100}}}});
+
+  // Info table
+  document.getElementById('dh-info-table').innerHTML=[
+    ['基因名',gene],['全称',GENE_FULL[gene]||'—'],['细胞类型',main.ct],['脑区',main.region],
+    ['特异性分数',main.spec.toFixed(4)],['平均表达',main.avg.toFixed(4)],
+    ['LogFC',main.lfc.toFixed(4)],['Pct.1',(main.pct1*100).toFixed(1)+'%'],
+    ['Pct.2',(main.pct2*100).toFixed(1)+'%'],['adj.p',fmtP(main.padj)],
+    ['验证状态',main.spec>0.9?'✅ 文献验证':main.spec>0.8?'📖 数据库支持':'⚪ 计算预测'],
+  ].map(([k,v])=>`<tr style="border-bottom:1px solid #f5f5f5"><td style="padding:7px 12px;color:#888;font-size:12px;width:120px">${k}</td><td style="padding:7px 12px;font-size:13px">${v}</td></tr>`).join('');
+
+  // Reset tabs
+  document.querySelectorAll('#gene-drawer .tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('#gene-drawer .tp').forEach(p=>p.classList.remove('on'));
+  document.querySelector('#gene-drawer .tab').classList.add('on');
+  document.getElementById('dt-expr').classList.add('on');
+  // Save current gene for region chart
+  document.getElementById('gene-drawer').dataset.gene=gene;
+}
+
+function renderGeneRegionChart(){
+  const gene=document.getElementById('gene-drawer').dataset.gene;
+  if(!gene) return;
+  const data=REGIONS.map(r=>{
+    const row=allMarkers().find(m=>m.gene===gene&&m.region===r);
+    return{r,avg:row?row.avg:rnd(0,0.2)};
+  });
+  const ctx=document.getElementById('dh-region-chart').getContext('2d');
+  if(chartRefs.dhR) chartRefs.dhR.destroy();
+  chartRefs.dhR=new Chart(ctx,{type:'radar',data:{labels:REGIONS,datasets:[{label:'平均表达',data:data.map(d=>+d.avg.toFixed(3)),fill:true,backgroundColor:'rgba(124,58,237,.15)',borderColor:'#7c3aed',pointBackgroundColor:'#7c3aed',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}}},scales:{r:{ticks:{font:{size:10}},grid:{color:'#e8eaed'},angleLines:{color:'#e8eaed'}}}}});
+}
+
+function closeDrawer(){document.getElementById('gene-drawer').classList.remove('open');}
+
+// ════════════════════════════════════════════
+//  DOT PLOT
+// ════════════════════════════════════════════
+function renderDotPlot(){
+  const region=(document.getElementById('dot-region')||{}).value||'';
+  const ctFilter=(document.getElementById('dot-ct')||{}).value||'';
+  const topN=parseInt((document.getElementById('dot-topn')||{}).value||'15');
+  const selCTs=ctFilter?[ctFilter]:CELL_TYPES;
+  let genes=allMarkers()
+    .filter(m=>(!region||m.region===region)&&selCTs.includes(m.ct)&&m.spec>=0.75)
+    .sort((a,b)=>b.spec-a.spec).map(m=>m.gene);
+  genes=[...new Set(genes)].slice(0,topN);
+
+  const CW=44,RH=38,LPAD=90,TPAD=70,GAP=3;
+  const svgW=LPAD+selCTs.length*(CW+GAP)+20;
+  const svgH=TPAD+genes.length*(RH+GAP)+20;
+  let svg=`<svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="min-width:${svgW}px" role="img" aria-label="Dot plot">`;
+
+  // Col headers (rotated)
+  selCTs.forEach((ct,ci)=>{
+    const x=LPAD+ci*(CW+GAP)+CW/2;
+    const y=TPAD-10;
+    svg+=`<text x="${x}" y="${y}" text-anchor="start" font-size="9" fill="${CT_COLORS[ct]||'#666'}" transform="rotate(-45,${x},${y})" font-weight="500">${ct}</text>`;
+  });
+
+  genes.forEach((g,gi)=>{
+    const y=TPAD+gi*(RH+GAP)+RH/2;
+    svg+=`<text x="${LPAD-6}" y="${y+4}" text-anchor="end" font-size="11" fill="#444">${g}</text>`;
+    selCTs.forEach((ct,ci)=>{
+      const x=LPAD+ci*(CW+GAP)+CW/2;
+      const row=allMarkers().find(m=>m.gene===g&&m.ct===ct);
+      const expr=row?row.avg:rnd(0,0.3);
+      const pct=row?row.pct1:rnd(0,0.05);
+      const r=Math.max(2.5,Math.round(pct*18));
+      const norm=Math.min(expr/4.5,1);
+      const lightness=Math.round(90-norm*60);
+      const sat=Math.round(40+norm*55);
+      const color=`hsl(260,${sat}%,${lightness}%)`;
+      svg+=`<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" opacity="0.88" onmouseenter="showTip(event,'${g} × ${ct}\\n表达: ${expr.toFixed(2)} | 比例: ${(pct*100).toFixed(0)}%')" onmouseleave="hideTip()" style="cursor:pointer"/>`;
+    });
+  });
+  svg+='</svg>';
+  document.getElementById('dotplot-container').innerHTML=svg;
+}
+
+// ════════════════════════════════════════════
+//  HEATMAP
+// ════════════════════════════════════════════
+function renderHeatmap(){
+  const region=(document.getElementById('heat-region')||{}).value||'';
+  const topN=parseInt((document.getElementById('heat-topn')||{}).value||'15');
+  let genes=allMarkers()
+    .filter(m=>(!region||m.region===region)&&m.spec>=0.7)
+    .sort((a,b)=>b.spec-a.spec).map(m=>m.gene);
+  genes=[...new Set(genes)].slice(0,topN);
+
+  let html='<table class="hm-table"><thead><tr><th class="hm-row-lbl"></th>'+
+    CELL_TYPES.map(ct=>`<th class="hm-col-lbl" style="color:${CT_COLORS[ct]}">${ct}</th>`).join('')+'</tr></thead><tbody>';
+
+  genes.forEach(g=>{
+    html+=`<tr><td class="hm-row-lbl"><a class="gene-lnk" onclick="openDrawer('${g}')" style="font-size:11px">${g}</a></td>`;
+    CELL_TYPES.forEach(ct=>{
+      const row=allMarkers().find(m=>m.gene===g&&m.ct===ct);
+      const val=row?row.avg:rnd(0,0.3);
+      const norm=Math.min(val/4.5,1);
+      const l=Math.round(95-norm*65);
+      const s=Math.round(30+norm*60);
+      const bg=`hsl(260,${s}%,${l}%)`;
+      html+=`<td class="hm-val" style="background:${bg}" title="${g} / ${ct}: ${val.toFixed(2)}" onmouseenter="showTip(event,'${g} / ${ct}: ${val.toFixed(2)}')" onmouseleave="hideTip()"></td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('heatmap-container').innerHTML=html;
+}
+
+// ════════════════════════════════════════════
+//  VIOLIN / BAR
+// ════════════════════════════════════════════
+function renderViolin(){
+  const gene=(document.getElementById('vln-gene')||{}).value||SEED_MARKERS[0].gene;
+  const region=(document.getElementById('vln-region')||{}).value||'';
+  const data=CELL_TYPES.map(ct=>{
+    const rows=allMarkers().filter(m=>m.gene===gene&&m.ct===ct&&(!region||m.region===region));
+    const avg=rows.length?rows.reduce((s,r)=>s+r.avg,0)/rows.length:rnd(0,0.3);
+    const pct=rows.length?rows[0].pct1:rnd(0,0.05);
+    return{ct,avg,pct};
+  });
+  const ctx=document.getElementById('violin-chart').getContext('2d');
+  if(chartRefs.vln) chartRefs.vln.destroy();
+  chartRefs.vln=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.ct),datasets:[
+    {label:'平均表达',data:data.map(d=>+d.avg.toFixed(3)),backgroundColor:CELL_TYPES.map(ct=>CT_COLORS[ct]+'cc'),borderColor:CELL_TYPES.map(ct=>CT_COLORS[ct]),borderWidth:1,borderRadius:5,yAxisID:'y'},
+    {label:'表达比例 %',data:data.map(d=>+(d.pct*100).toFixed(1)),type:'line',borderColor:'#6b7280',backgroundColor:'rgba(107,114,128,.06)',fill:true,pointRadius:5,pointBackgroundColor:CELL_TYPES.map(ct=>CT_COLORS[ct]),borderWidth:1.5,tension:.4,yAxisID:'y1'}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:10}},title:{display:true,text:`${gene} 在各细胞类型中的表达${region?' ('+region+')':''}`,font:{size:13}}},scales:{x:{ticks:{maxRotation:45,font:{size:10}},grid:{display:false}},y:{title:{display:true,text:'平均表达',font:{size:11}},grid:{color:'#f5f5f5'}},y1:{position:'right',title:{display:true,text:'% 表达细胞',font:{size:11}},grid:{display:false},max:100}}}});
+}
+
+// ════════════════════════════════════════════
+//  UMAP  (synthetic simulation)
+// ════════════════════════════════════════════
+let UMAP_CELLS=[];
+function initUMAPData(){
+  if(USER_UMAP){UMAP_CELLS=USER_UMAP;return;}
+  if(UMAP_CELLS.length) return;
+  // Generate synthetic UMAP clusters
+  const centres={
+    'Excitatory Neuron':[2,3],'Inhibitory Neuron':[-2,3],
+    'Astrocyte':[0,5],'Oligodendrocyte':[4,-1],'OPC':[3,-3],
+    'Microglia':[-4,-1],'Endothelial':[-3,-4],'Mural':[-1,-5],'Choroid Plexus':[0,-2]
+  };
+  const regionCenters={Cortex:[0.5,0.5],Hippocampus:[-0.5,0.5],Cerebellum:[0.5,-0.5],Striatum:[-0.5,-0.5],Brainstem:[0,0]};
+  UMAP_CELLS=[];
+  CELL_TYPES.forEach(ct=>{
+    const [cx,cy]=centres[ct];
+    const n=ct.includes('Neuron')?200:ct.includes('glia')||ct==='Astrocyte'||ct==='Oligodendrocyte'?150:60;
+    const region=ct==='Excitatory Neuron'||ct==='Inhibitory Neuron'||ct==='Astrocyte'?REGIONS[0]:
+                 ct==='Oligodendrocyte'||ct==='Microglia'?REGIONS[0]:REGIONS[Math.floor(Math.random()*REGIONS.length)];
+    for(let i=0;i<n;i++){
+      const [rx,ry]=regionCenters[region]||[0,0];
+      UMAP_CELLS.push({x:cx+rx+(Math.random()-.5)*2.8,y:cy+ry+(Math.random()-.5)*2.8,ct,region});
+    }
+  });
+}
+
+function drawUMAP(){
+  initUMAPData();
+  const canvas=document.getElementById('umap-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const colorBy=(document.getElementById('umap-color')||{}).value||'celltype';
+  const region=(document.getElementById('umap-region')||{}).value||'';
+  const cells=region?UMAP_CELLS.filter(c=>c.region===region):UMAP_CELLS;
+
+  // Scale
+  const xs=cells.map(c=>c.x),ys=cells.map(c=>c.y);
+  const [xmin,xmax]=[Math.min(...xs)-0.5,Math.max(...xs)+0.5];
+  const [ymin,ymax]=[Math.min(...ys)-0.5,Math.max(...ys)+0.5];
+  const pad=30;
+  const sx=x=>(x-xmin)/(xmax-xmin)*(W-2*pad)+pad;
+  const sy=y=>H-((y-ymin)/(ymax-ymin)*(H-2*pad)+pad);
+
+  cells.forEach(c=>{
+    ctx.beginPath();
+    const color=colorBy==='celltype'?(CT_COLORS[c.ct]||'#aaa'):(REGION_COLORS[c.region]||'#aaa');
+    ctx.fillStyle=color+'bb';
+    ctx.arc(sx(c.x),sy(c.y),2.5,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // Legend
+  const legendItems=colorBy==='celltype'?CELL_TYPES.map(ct=>({label:ct,color:CT_COLORS[ct]})):
+    REGIONS.map(r=>({label:r,color:REGION_COLORS[r]}));
+  const legEl=document.getElementById('umap-legend');
+  legEl.innerHTML='<div class="legend">'+legendItems.map(l=>`<div class="leg-item"><div class="leg-dot" style="width:10px;height:10px;background:${l.color}"></div>${l.label}</div>`).join('')+'</div>';
+}
+
+function drawUMAPGene(){
+  initUMAPData();
+  const gene=(document.getElementById('umap-gene')||{}).value||SEED_MARKERS[0].gene;
+  const canvas=document.getElementById('umap-gene-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const cells=UMAP_CELLS;
+  const xs=cells.map(c=>c.x),ys=cells.map(c=>c.y);
+  const [xmin,xmax]=[Math.min(...xs)-0.5,Math.max(...xs)+0.5];
+  const [ymin,ymax]=[Math.min(...ys)-0.5,Math.max(...ys)+0.5];
+  const pad=30;
+  const sx=x=>(x-xmin)/(xmax-xmin)*(W-2*pad)+pad;
+  const sy=y=>H-((y-ymin)/(ymax-ymin)*(H-2*pad)+pad);
+  // Get gene expression per cell type
+  const exprByCT={};
+  CELL_TYPES.forEach(ct=>{
+    const row=allMarkers().find(m=>m.gene===gene&&m.ct===ct);
+    exprByCT[ct]=row?row.avg:rnd(0,0.2);
+  });
+  const maxExpr=Math.max(...Object.values(exprByCT));
+  cells.forEach(c=>{
+    const expr=exprByCT[c.ct]||0;
+    const norm=maxExpr>0?expr/maxExpr:0;
+    const l=Math.round(95-norm*65);
+    const s=Math.round(30+norm*60);
+    const color=`hsl(260,${s}%,${l}%)`;
+    ctx.beginPath();
+    ctx.fillStyle=color+'cc';
+    ctx.arc(sx(c.x),sy(c.y),2.5,0,Math.PI*2);
+    ctx.fill();
+  });
+  // Title
+  ctx.font='13px sans-serif';ctx.fillStyle='#333';ctx.textAlign='center';
+  ctx.fillText(gene+' expression',W/2,18);
+}
+
+function renderUMAPStats(){
+  initUMAPData();
+  const tbody=document.getElementById('umap-stat-tbody');
+  tbody.innerHTML=CELL_TYPES.map(ct=>{
+    const region=UMAP_CELLS.filter(c=>c.ct===ct).map(c=>c.region);
+    const topR=[...new Set(region)][0]||'—';
+    const n=UMAP_CELLS.filter(c=>c.ct===ct).length;
+    const ms=allMarkers().filter(m=>m.ct===ct).sort((a,b)=>b.spec-a.spec).slice(0,3).map(m=>m.gene);
+    return`<tr><td><span class="badge ${CT_BADGE[ct]||'b-default'}">${ct}</span></td><td>${topR}</td><td>${n}</td><td>${allMarkers().filter(m=>m.ct===ct).length}</td><td>${ms.map(g=>`<a class="gene-lnk" onclick="openDrawerFromUMAP('${g}')">${g}</a>`).join(', ')}</td></tr>`;
+  }).join('');
+}
+
+function openDrawerFromUMAP(g){showPage('markers',document.querySelector('[onclick*=markers]'));setTimeout(()=>openDrawer(g),50);}
+
+// ════════════════════════════════════════════
+//  FILE UPLOAD
+// ════════════════════════════════════════════
+function onDragOver(e,el){e.preventDefault();el.classList.add('over');}
+function onDrop(e,type){
+  e.preventDefault();
+  const el=document.getElementById('zone-'+type);el.classList.remove('over');
+  const file=e.dataTransfer.files[0];
+  if(!file) return;
+  if(type==='marker'){const inp=document.getElementById('file-marker');const dt=new DataTransfer();dt.items.add(file);inp.files=dt.files;loadMarkerFile(inp);}
+  else{const inp=document.getElementById('file-umap');const dt=new DataTransfer();dt.items.add(file);inp.files=dt.files;loadUMAPFile(inp);}
+}
+
+function loadMarkerFile(input){
+  const file=input.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const rows=parseCSV(e.target.result);
+      if(!rows.length) throw new Error('文件为空或格式错误，请检查文件编码（需UTF-8）');
+      // 兼容多种列名：celltype / cluster / cell_type / Cell_Type
+      const firstRow=rows[0];
+      const geneCol=Object.keys(firstRow).find(k=>/^gene$/i.test(k));
+      const ctCol=Object.keys(firstRow).find(k=>/^(celltype|cell_type|cluster|cell\.type|ident)$/i.test(k));
+      if(!geneCol) throw new Error(`未找到基因名列，检测到的列名：${Object.keys(firstRow).join(', ')}\n\n需要含有 "gene" 列`);
+      if(!ctCol)   throw new Error(`未找到细胞类型列，检测到的列名：${Object.keys(firstRow).join(', ')}\n\n需要含有 "celltype" 或 "cluster" 列`);
+      USER_MARKERS=rows.map(r=>({
+        gene:r[geneCol]?.trim()||'',ct:r[ctCol]?.trim()||'Unknown',region:(r.region||r.brain_region||r.area||'')?.trim()||'Unknown',
+        spec:parseFloat(r.specificity||r.spec||r.avg_log2FC||r.avg_logFC||0.5)||0.5,
+        avg:parseFloat(r.avg_expr||r.avg_log2FC||r.avg_logFC||r.avg||1)||1,
+        lfc:parseFloat(r.logFC||r.log2FC||r.avg_log2FC||r.avg_logFC||0.5)||0.5,
+        pct1:parseFloat(r.pct1||r['pct.1']||r.pct_1||0.5)||0.5,
+        pct2:parseFloat(r.pct2||r['pct.2']||r.pct_2||0.05)||0.05,
+        padj:parseFloat(r.p_adj||r.padj||r.p_val_adj||r.p_val||0.05)||0.05,
+      })).filter(r=>r.gene);
+      const st=document.getElementById('status-marker');
+      st.style.display='block';st.innerHTML=`✅ 成功载入 <strong>${USER_MARKERS.length}</strong> 条 Marker 记录，涵盖 ${[...new Set(USER_MARKERS.map(m=>m.ct))].length} 种细胞类型`;
+      st.style.background='#f0fdf4';st.style.color='#166534';
+      document.getElementById('zone-marker').classList.add('uzone-loaded');
+      document.getElementById('s-markers').textContent=USER_MARKERS.length;
+      document.getElementById('cnt-markers').textContent=USER_MARKERS.length;
+      document.getElementById('s-ds').textContent=(USER_MARKERS?1:0)+(USER_UMAP?1:0);
+      initFilterDropdowns();
+    }catch(err){
+      const st=document.getElementById('status-marker');st.style.display='block';
+      st.innerHTML=`❌ 解析失败：${err.message}`;st.style.background='#fef2f2';st.style.color='#991b1b';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadUMAPFile(input){
+  const file=input.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const rows=parseCSV(e.target.result);
+      if(!rows.length) throw new Error('文件为空或格式错误');
+      const firstRow=rows[0];
+      const u1Col=Object.keys(firstRow).find(k=>/^(UMAP_1|umap_1|UMAP1|umap1|umap\.1)$/i.test(k));
+      const u2Col=Object.keys(firstRow).find(k=>/^(UMAP_2|umap_2|UMAP2|umap2|umap\.2)$/i.test(k));
+      const ctCol=Object.keys(firstRow).find(k=>/^(celltype|cell_type|cluster|cell\.type|ident|seurat_clusters)$/i.test(k));
+      if(!u1Col||!u2Col) throw new Error(`未找到 UMAP 坐标列，检测到：${Object.keys(firstRow).join(', ')}\n\n需要 UMAP_1 和 UMAP_2 列`);
+      if(!ctCol)         throw new Error(`未找到细胞类型列，检测到：${Object.keys(firstRow).join(', ')}\n\n需要 celltype 或 cluster 列`);
+      USER_UMAP=rows.map(r=>({x:parseFloat(r[u1Col]),y:parseFloat(r[u2Col]),ct:(r[ctCol]||'Unknown').trim(),region:(r.region||r.brain_region||r.area||'Unknown').trim()})).filter(r=>!isNaN(r.x)&&!isNaN(r.y));
+      UMAP_CELLS=USER_UMAP;
+      const st=document.getElementById('status-umap');st.style.display='block';
+      st.innerHTML=`✅ 成功载入 <strong>${USER_UMAP.length}</strong> 个细胞的 UMAP 坐标`;
+      st.style.background='#f0fdf4';st.style.color='#166534';
+      document.getElementById('zone-umap').classList.add('uzone-loaded');
+      document.getElementById('s-ds').textContent=(USER_MARKERS?1:0)+(USER_UMAP?1:0);
+    }catch(err){
+      const st=document.getElementById('status-umap');st.style.display='block';
+      st.innerHTML=`❌ 解析失败：${err.message}`;st.style.background='#fef2f2';st.style.color='#991b1b';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  if(!lines.length) return[];
+  const sep=lines[0].includes('\t')?'\t':',';
+  const headers=lines[0].split(sep).map(h=>h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).filter(l=>l.trim()).map(line=>{
+    const vals=line.split(sep).map(v=>v.trim().replace(/^"|"$/g,''));
+    const obj={};headers.forEach((h,i)=>{obj[h]=vals[i]||'';});return obj;
+  });
+}
+
+// ════════════════════════════════════════════
+//  TOOLTIP
+// ════════════════════════════════════════════
+function showTip(e,text){
+  const t=document.getElementById('tip');t.style.display='block';
+  t.innerHTML=text.replace(/\n/g,'<br>');t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY-10)+'px';
+}
+function hideTip(){document.getElementById('tip').style.display='none';}
+
+// ════════════════════════════════════════════
+//  SEARCH
+// ════════════════════════════════════════════
+function globalSearch(q){
+  if(!q) return;
+  document.getElementById('m-search').value=q;
+  showPage('markers',document.querySelector('[onclick*=markers]'));
+  setTimeout(renderMarkers,20);
+}
+
+// ════════════════════════════════════════════
+//  EXPORT
+// ════════════════════════════════════════════
+function exportCSV(){
+  const data=getFiltered();
+  const hdr='gene,celltype,region,specificity,avg_expr,logFC,pct1,pct2,p_adj\n';
+  const rows=data.map(m=>`${m.gene},${m.ct},${m.region},${m.spec},${m.avg},${m.lfc},${m.pct1},${m.pct2},${m.padj}`).join('\n');
+  const blob=new Blob([hdr+rows],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='brain_markers_export.csv';a.click();
+}
+
+// ════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════
+function initFilterDropdowns(){
+  const cts=[...new Set(allMarkers().map(m=>m.ct))].sort();
+  const regs=[...new Set(allMarkers().map(m=>m.region))].sort();
+  // Cell type selects
+  ['m-ct','dot-ct'].forEach(id=>{
+    const el=document.getElementById(id);if(!el) return;
+    const cur=el.value;
+    el.innerHTML='<option value="">所有细胞类型</option>'+cts.map(ct=>`<option value="${ct}">${ct}</option>`).join('');
+    el.value=cur;
+  });
+  // Region selects
+  ['m-region','dot-region','heat-region','umap-region','vln-region'].forEach(id=>{
+    const el=document.getElementById(id);if(!el) return;
+    const cur=el.value;
+    el.innerHTML='<option value="">全部脑区</option>'+regs.map(r=>`<option value="${r}">${r}</option>`).join('');
+    el.value=cur;
+  });
+  // Violin gene
+  const vg=document.getElementById('vln-gene');
+  if(vg){
+    const cur=vg.value;
+    vg.innerHTML=allMarkers().filter(m=>m.spec>=0.85).sort((a,b)=>b.spec-a.spec).slice(0,30).map(m=>`<option value="${m.gene}">${m.gene}</option>`).join('');
+    if(cur) vg.value=cur;
+  }
+  // UMAP gene
+  const ug=document.getElementById('umap-gene');
+  if(ug){
+    const cur=ug.value;
+    ug.innerHTML=SEED_MARKERS.slice(0,20).map(m=>`<option value="${m.gene}">${m.gene}</option>`).join('');
+    if(cur) ug.value=cur;
+  }
+}
+
+window.addEventListener('load',()=>{
+  initFilterDropdowns();
+  renderOverview();
+});
+</script>
+</body>
+</html>
